@@ -8,7 +8,7 @@ import streamlit as st
 from transcribe import download_subtitles
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def fetch_subtitles(video_url, lang):
     return download_subtitles(video_url, lang)
 
