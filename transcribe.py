@@ -28,6 +28,17 @@ def json3_to_text(json_content):
     return ' '.join(parts)
 
 
+def limpar_texto(texto):
+    """Remove artefatos comuns de legendas do YouTube."""
+    # Remove colchetes e conteúdo: [Música], [ __ ], [Aplausos], etc.
+    texto = re.sub(r'\[[^\]]*\]', '', texto)
+    # Remove indicadores de mudança de falante: >>
+    texto = re.sub(r'>>', '', texto)
+    # Normaliza espaços múltiplos em um só
+    texto = re.sub(r' {2,}', ' ', texto)
+    return texto.strip()
+
+
 def download_subtitles(video_url, lang=None):
     """
     Tenta baixar legendas existentes do vídeo.
@@ -115,10 +126,11 @@ def download_subtitles(video_url, lang=None):
                 partes.append(limpa)
         texto = ' '.join(partes)
 
-    if not texto.strip():
+    texto = limpar_texto(texto)
+    if not texto:
         return None, video_title
 
-    return texto.strip(), video_title
+    return texto, video_title
 
 
 
