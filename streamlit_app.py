@@ -228,8 +228,13 @@ st.markdown("""
 
 
 # ─── Input Section ────────────────────────────────────────────────────
+# Read video_url from query params (set by Firefox extension)
+query_params = st.query_params
+default_url = query_params.get("video_url", "")
+
 video_url = st.text_input(
     "🔗 URL do Vídeo",
+    value=default_url,
     placeholder="https://www.youtube.com/watch?v=...",
     help="Cole a URL completa do vídeo do YouTube",
 )

@@ -1,0 +1,21 @@
+{
+    "manifest_version": 2,
+    "name": "YouTube Subtitle Downloader",
+    "version": "1.0.0",
+    "description": "Extraia legendas de qualquer vídeo do YouTube com um clique.",
+    "icons": {
+        "96": "icons/icon.svg"
+    },
+    "browser_action": {
+        "default_icon": "icons/icon.svg",
+        "default_title": "Transcrever Legendas do YouTube"
+    },
+    "permissions": [
+        "activeTab"
+    ],
+    "background": {
+        "scripts": [
+            "background.js"
+        ]
+    }
+}
