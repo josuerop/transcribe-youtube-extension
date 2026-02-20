@@ -8,6 +8,11 @@ import streamlit as st
 from transcribe import download_subtitles
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_subtitles(video_url, lang):
+    return download_subtitles(video_url, lang)
+
+
 # ─── Page Configuration ───────────────────────────────────────────────
 st.set_page_config(
     page_title="YouTube Subtitle Downloader",
@@ -20,11 +25,9 @@ st.set_page_config(
 st.markdown("""
 <style>
     /* ── Import Google Font ── */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
     /* ── Global ── */
     *, .stApp {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .stApp {
@@ -274,7 +277,7 @@ if transcribe_btn:
 
         with st.spinner("🔍 Buscando legendas... Isso pode levar alguns segundos."):
             try:
-                transcription, video_title = download_subtitles(video_url, lang)
+                transcription, video_title = fetch_subtitles(video_url, lang)
 
                 if not transcription:
                     st.warning("😕 Nenhuma legenda disponível para este vídeo.")

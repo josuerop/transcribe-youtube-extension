@@ -4,6 +4,7 @@ Script para baixar legendas de vídeos do YouTube.
 Uso: python transcribe.py "<URL_DO_VIDEO>" [--lang IDIOMA]
 """
 
+import re
 import sys
 import json
 import argparse
@@ -35,7 +36,11 @@ def download_subtitles(video_url, lang=None):
     """
     print(f"🔍 Verificando legendas disponíveis...")
 
-    ydl_opts = {'quiet': True}
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'extractor_args': {'youtube': {'skip': ['dash', 'hls']}},
+    }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=False)
 
@@ -88,7 +93,7 @@ def download_subtitles(video_url, lang=None):
         return None, video_title
 
     print(f"📄 Baixando legendas {fonte} (formato: {escolhido['ext']})...")
-    resp = requests.get(escolhido['url'])
+    resp = requests.get(escolhido['url'], timeout=30)
     resp.raise_for_status()
     conteudo = resp.text
 
@@ -96,7 +101,6 @@ def download_subtitles(video_url, lang=None):
         texto = json3_to_text(conteudo)
     else:
         # Fallback para vtt: remove timestamps e tags inline
-        import re
         linhas = conteudo.splitlines()
         partes = []
         vistas = set()
