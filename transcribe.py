@@ -6,10 +6,17 @@ Uso: python transcribe.py "<URL_DO_VIDEO>" [--lang IDIOMA]
 
 import sys
 import json
+import re
+import time
 import argparse
 
 import requests
 import yt_dlp
+
+
+# ── Cache em memória (evita requisições repetidas ao YouTube) ──
+_cache = {}
+CACHE_TTL = 300  # 5 minutos
 
 
 def json3_to_text(json_content):
@@ -27,17 +34,90 @@ def json3_to_text(json_content):
     return ' '.join(parts)
 
 
+def _get_ydl_opts():
+    """Configurações otimizadas do yt-dlp para evitar rate limiting."""
+    return {
+        'quiet': True,
+        'no_warnings': True,
+        # Anti-rate-limiting
+        'sleep_interval_requests': 1,       # 1s entre requisições
+        'socket_timeout': 30,               # timeout maior
+        'retries': 5,                        # mais tentativas
+        'fragment_retries': 5,
+        'extractor_retries': 3,
+        'force_ipv4': True,                  # evita bloqueio IPv6
+        # Simula user agent de navegador real
+        'http_headers': {
+            'User-Agent': (
+                'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) '
+                'Gecko/20100101 Firefox/128.0'
+            ),
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+        },
+    }
+
+
+def _try_with_cookies(ydl_opts):
+    """Tenta adicionar cookies do Firefox para parecer um usuário logado."""
+    try:
+        opts_with_cookies = dict(ydl_opts)
+        opts_with_cookies['cookiesfrombrowser'] = ('firefox',)
+        # Testa se consegue acessar os cookies
+        with yt_dlp.YoutubeDL(opts_with_cookies) as ydl:
+            pass
+        return opts_with_cookies
+    except Exception:
+        return ydl_opts
+
+
+def _extract_with_retry(video_url, max_retries=3):
+    """Extrai info do vídeo com retry exponential backoff."""
+    ydl_opts = _get_ydl_opts()
+
+    for attempt in range(max_retries):
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                return ydl.extract_info(video_url, download=False)
+
+        except yt_dlp.utils.DownloadError as e:
+            error_str = str(e)
+
+            if '429' in error_str or 'Too Many Requests' in error_str:
+                if attempt < max_retries - 1:
+                    wait = (attempt + 1) * 5  # 5s, 10s, 15s
+                    print(f"⏳ Rate limited (429). Aguardando {wait}s... (tentativa {attempt + 2}/{max_retries})")
+                    time.sleep(wait)
+
+                    # Na segunda tentativa, tenta com cookies do navegador
+                    if attempt == 0:
+                        print("🍪 Tentando com cookies do Firefox...")
+                        ydl_opts = _try_with_cookies(ydl_opts)
+                    continue
+                else:
+                    raise
+            else:
+                raise
+
+    raise Exception("Falha após múltiplas tentativas.")
+
+
 def download_subtitles(video_url, lang=None):
     """
     Tenta baixar legendas existentes do vídeo.
     Prefere legendas manuais; fallback para auto-geradas.
     Retorna (texto, titulo) ou None se não houver legendas.
     """
+    # Verifica cache
+    cache_key = f"{video_url}:{lang}"
+    if cache_key in _cache:
+        cached = _cache[cache_key]
+        if time.time() - cached['time'] < CACHE_TTL:
+            print("⚡ Usando cache...")
+            return cached['text'], cached['title']
+
     print(f"🔍 Verificando legendas disponíveis...")
 
-    ydl_opts = {'quiet': True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=False)
+    info = _extract_with_retry(video_url)
 
     video_title = info.get('title', 'video')
 
@@ -88,7 +168,7 @@ def download_subtitles(video_url, lang=None):
         return None, video_title
 
     print(f"📄 Baixando legendas {fonte} (formato: {escolhido['ext']})...")
-    resp = requests.get(escolhido['url'])
+    resp = requests.get(escolhido['url'], timeout=15)
     resp.raise_for_status()
     conteudo = resp.text
 
@@ -96,7 +176,6 @@ def download_subtitles(video_url, lang=None):
         texto = json3_to_text(conteudo)
     else:
         # Fallback para vtt: remove timestamps e tags inline
-        import re
         linhas = conteudo.splitlines()
         partes = []
         vistas = set()
@@ -114,7 +193,16 @@ def download_subtitles(video_url, lang=None):
     if not texto.strip():
         return None, video_title
 
-    return texto.strip(), video_title
+    result_text = texto.strip()
+
+    # Salva no cache
+    _cache[cache_key] = {
+        'text': result_text,
+        'title': video_title,
+        'time': time.time(),
+    }
+
+    return result_text, video_title
 
 
 

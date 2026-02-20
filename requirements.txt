@@ -1,3 +1,6 @@
 yt-dlp
 requests
 streamlit
+flask
+flask-cors
+gunicorn
