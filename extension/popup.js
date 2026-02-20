@@ -4,7 +4,7 @@
  */
 
 // ⚠️ IMPORTANTE: Atualize esta URL após o deploy no Render
-const API_URL = "http://localhost:5000";
+const API_URL = "https://transcribe-youtube-extension.onrender.com";
 
 // ── DOM Elements ──
 const notYoutube = document.getElementById("not-youtube");
