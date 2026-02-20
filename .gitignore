@@ -20,7 +20,6 @@ Thumbs.db
 # Transcription output
 *.txt
 !requirements.txt
-!requirements-api.txt
 
 # Environment variables
 .env
