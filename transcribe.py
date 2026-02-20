@@ -34,6 +34,8 @@ def limpar_texto(texto):
     texto = re.sub(r'\[[^\]]*\]', '', texto)
     # Remove indicadores de mudança de falante: >>
     texto = re.sub(r'>>', '', texto)
+    # Remove símbolos de música: ♪
+    texto = re.sub(r'♪', '', texto)
     # Normaliza espaços múltiplos em um só
     texto = re.sub(r' {2,}', ' ', texto)
     return texto.strip()
